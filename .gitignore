@@ -1,0 +1,10 @@
+# python caches
+*__pycache__*
+*strax_data*
+*.ipynb_checkpoints
+*~
+*_out*
+*.out
+*#
+*database/*pkl
+*noise_matrix*

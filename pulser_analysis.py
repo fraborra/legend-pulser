@@ -98,7 +98,7 @@ def main():
 
 
 def plot_pulser_waveforms(ge_key, det_name, raw_list, puls_chn = 'ch1027201',
-                          nwf = 10, us = 1000/16, xlim=(3060,3090), ylim=(1e4,1e9), plot_dir = None ):
+                          nwf=10, us=1000/16, xlim=(3060,3090), ylim=(1e4,1e9), plot_dir=None ):
     meta_path = f'/lfs/l1/legend/users/dandrea/legend-metadata'
     lmeta = LegendMetadata(path=meta_path)
     chmap = lmeta.hardware.configuration.channelmaps.on("20230311T235840Z")
@@ -146,6 +146,9 @@ def pulser_processing(period, run, ge_key, test_dict_file, raw_dir, puls_chn = '
     string = int(chmap[ge_key]['location']['string'])
     cc4_id = chmap[ge_key]['electronics']['cc4']['id']
     attenuations = np.array(test_dict[cc4_id]['attenuations'])
+    out_voltages = np.array([pulser_db_in_voltage(att) for att in attenuations])
+    print(out_voltages)
+    rough_energies = np.array([pulser_db_in_voltage(att,energy=1) for att in attenuations])
     amplitudes = np.array(test_dict[cc4_id]['amplitudes'])
     keys = test_dict[cc4_id]['keys']
     pulser_pos = np.zeros(len(keys))
@@ -170,7 +173,7 @@ def pulser_processing(period, run, ge_key, test_dict_file, raw_dir, puls_chn = '
             ax.plot(dts,wf,label=f'{j} {(timestamp.nda[j]-timestamp.nda[0])*1e3:.2f} ms')
             axin.plot(dts,wf)
         ax.set_xlabel('time ($\mu$s)')
-        ax.legend(title=f'{ge_key} - CC4-{cc4_id}\nPulser att. {attenuations[i]}',loc='upper left')
+        ax.legend(title=f'{ge_key} - CC4-{cc4_id}\nPulser att. {attenuations[i]} dB',loc='upper left')
         axin.set_xlim(40.4,55.2)
         axin.set_yticklabels('')
         
@@ -235,11 +238,17 @@ def pulser_processing(period, run, ge_key, test_dict_file, raw_dir, puls_chn = '
                                wo_mode='overwrite',group=chn)
         """
     fig2, ax2 = plt.subplots(figsize=(12,6.75), facecolor='white')
-    ax2.plot(1/attenuations,pulser_pos,label='data')
+    ax2.plot(out_voltages,pulser_pos,label='data')
     ax2.legend(title=f'{ge_key} - CC4-{cc4_id}')
-    ax2.set_xlabel('1/attenuation (1/db)')
+    ax2.set_xlabel('pulser voltages (V)')
     ax2.set_ylabel('pulser position (ADC)')
 
+def pulser_db_in_voltage(attenuation_db, pulser_voltage = 2.5, energy = False):
+    ratio = 10.0**(-attenuation_db / 20.0)
+    output = ratio * pulser_voltage
+    output_MeV = 10.0**(-32 / 20.0) * pulser_voltage
+    if energy: return output/output_MeV
+    else: return output
 
 def fit_gaussian_peak(energies, nb = 500, ran = 20, relative = False):
     xm = (np.percentile(energies, 50))
